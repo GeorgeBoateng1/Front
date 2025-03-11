@@ -1,0 +1,243 @@
+import { useEffect, useState } from "react";
+import { styled, useTheme } from "@mui/material/styles";
+import {
+  Typography,
+  Card,
+  CardContent,
+  Container,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+} from "@mui/material";
+import { useWallet } from "@solana/wallet-adapter-react";
+import axios from "axios";
+import { useGetUserDataQuery } from "@/redux/api-get/getUserDetail";
+import { ChatBotSolanaWindow } from "../../chat";
+import { useSnackbar } from "notistack";
+import { BACKEND_URL } from "@/config";
+
+const RootStyle = styled(Card)(({ theme }) => ({
+  boxShadow: "none",
+  textAlign: "center",
+  [theme.breakpoints.up("md")]: {
+    height: "100%",
+    textAlign: "left",
+  },
+}));
+
+export default function AppSelectWalletOption() {
+  const { connected } = useWallet();
+  const { enqueueSnackbar } = useSnackbar();
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [privateKey, setPrivateKey] = useState("");
+  const [importError, setImportError] = useState(null);
+  const { data, error, isLoading, refetch, isFetching } = useGetUserDataQuery();
+  const [newWallet, setNewWallet] = useState(null);
+
+  // Disable browser back button by preventing popstate events
+
+  useEffect(() => {
+    // Push initial state so that there is something to intercept
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      // When back is pressed, push the current state again to stay on the same page
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Import Wallet
+
+  const handleImportWallet = async () => {
+    setImportError(null); // Reset error before new attempt
+    if (!privateKey) {
+      const errorMsg = "Please enter a private key";
+      setImportError(errorMsg);
+      enqueueSnackbar(errorMsg, { variant: "error" });
+      return;
+    }
+
+    try {
+      // Make the POST request to import the wallet
+      const response = await axios.post(
+        `${BACKEND_URL}/api/v1/wallet/import`,
+        { privateKey },
+        { withCredentials: true }
+      );
+      refetch();
+      console.log("Wallet imported successfully:", response.data);
+      // Optionally close the dialog
+      setImportModalOpen(false);
+      // Clear the private key field
+      setPrivateKey("");
+      // Display success notification
+      enqueueSnackbar(response.data.message || "Wallet imported successfully", {
+        variant: "success",
+      });
+    } catch (error) {
+      console.log("Error importing wallet:", error);
+      const errorMsg = error.message || "Error importing wallet. Try again.";
+      setImportError(errorMsg);
+      enqueueSnackbar(errorMsg, { variant: "error" });
+    }
+  };
+
+  // Create Wallet
+  const handleCreateWallet = async () => {
+    try {
+      // Make the POST request to create a wallet
+      const response = await axios.post(
+        `${BACKEND_URL}/api/v1/wallet/create`,
+        {},
+        { withCredentials: true }
+      );
+
+      console.log("Wallet created successfully:", response.data);
+      refetch();
+      setNewWallet(response.data.wallet);
+      // Close the dialog if you like
+      setCreateModalOpen(false);
+      // Display success notification
+      enqueueSnackbar(response.data.message || "Wallet created successfully", {
+        variant: "success",
+      });
+    } catch (error) {
+      const errorMsg = error.message;
+      enqueueSnackbar(errorMsg, { variant: "error" });
+    }
+  };
+
+  if (isFetching) {
+    return (
+      <RootStyle>
+        <Typography variant="h6" textAlign="center">
+          Loading...
+        </Typography>
+      </RootStyle>
+    );
+  }
+
+  return (
+    <RootStyle>
+      {data?.user?.walletAddress ? (
+        <>
+          <ChatBotSolanaWindow />
+        </>
+      ) : (
+        <>
+          <Container>
+            <CardContent sx={{ height: "100%" }}>
+              <Typography variant="h3" gutterBottom textAlign="center">
+                Hedge AI
+              </Typography>
+              <Typography
+                variant="body1"
+                gutterBottom
+                textAlign="center"
+                sx={{ mb: 5 }}
+              >
+                Connect your wallet or import an existing one.
+              </Typography>
+
+              {!connected && (
+                <Container
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 2,
+                    flexWrap: "wrap",
+                    "@media (min-width:600px)": {
+                      justifyContent: "space-evenly",
+                    },
+                    "@media (min-width:960px)": {
+                      justifyContent: "center",
+                      gap: 3,
+                    },
+                  }}
+                >
+                  <Button
+                    variant="contained"
+                    onClick={() => setImportModalOpen(true)}
+                    sx={{ width: 150, height: 50 }}
+                  >
+                    Import Wallet
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => setCreateModalOpen(true)}
+                    sx={{ width: 150, height: 50 }}
+                  >
+                    Create Wallet
+                  </Button>
+                  {/* <WalletMultiButton /> */}
+                </Container>
+              )}
+            </CardContent>
+          </Container>
+
+          {/* Import Wallet Modal */}
+          <Dialog
+            open={importModalOpen}
+            onClose={() => setImportModalOpen(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Import Wallet</DialogTitle>
+            <DialogContent>
+              <TextField
+                fullWidth
+                label="Solana Private Key (BS58)"
+                variant="outlined"
+                value={privateKey}
+                onChange={(e) => setPrivateKey(e.target.value)}
+                error={!!importError}
+                helperText={importError}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setImportModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleImportWallet} variant="contained">
+                Import Wallet
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Create Wallet Modal */}
+          <Dialog
+            open={createModalOpen}
+            onClose={() => setCreateModalOpen(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle sx={{ mb: 2 }}>Create Wallet</DialogTitle>
+            <DialogContent>
+              <Button variant="contained" onClick={handleCreateWallet}>
+                Generate New Wallet
+              </Button>
+
+              {/* If you want to display the newly created wallet info */}
+              {newWallet && (
+                <>
+                  <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
+                    Public Key: {newWallet.address}
+                  </Typography>
+                </>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setCreateModalOpen(false)}>Close</Button>
+            </DialogActions>
+          </Dialog>
+        </>
+      )}
+    </RootStyle>
+  );
+}
