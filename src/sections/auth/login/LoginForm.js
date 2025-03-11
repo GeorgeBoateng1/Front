@@ -1,6 +1,5 @@
 import * as Yup from "yup";
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
 import { useSnackbar } from "notistack";
 import { useRouter } from "next/router";
 import { useForm } from "react-hook-form";
@@ -20,7 +19,7 @@ import {
   FormProvider,
   RHFCheckbox,
 } from "../../../components/hook-form";
-import { loginUser } from "@/apiCalls/Auth";
+import axios from "axios";
 import { PATH_AUTH } from "@/routes/paths";
 import NextLink from "next/link";
 
@@ -54,20 +53,30 @@ export default function LoginForm() {
     reset,
     setError,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = methods;
 
   const onSubmit = async (data) => {
     setIsApiCallInProgress(true);
     try {
-      const response = await loginUser(data.email, data.password);
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/login`,
+        {
+          email: data.email,
+          password: data.password,
+        },
+        { withCredentials: true } // ✅ Ensure cookies are sent with the request
+      );
+
       enqueueSnackbar("Login success!");
       router.push("/dashboard/app");
       setTimeout(() => {
         setIsApiCallInProgress(false);
       }, 8000);
     } catch (error) {
-      enqueueSnackbar("Login failed: " + error.message, { variant: "error" });
+      enqueueSnackbar(`Login failed: ${error.response?.data?.message || error.message}`, {
+        variant: "error",
+      });
       setIsApiCallInProgress(false);
       reset();
       setError("afterSubmit", { message: "Login error" });
@@ -128,17 +137,8 @@ export default function LoginForm() {
 
       <Typography variant="body2" align="center" sx={{ mt: 3 }}>
         Don&apos;t have an account?{" "}
-        <NextLink
-          href={PATH_AUTH.register}
-          passhref="true"
-          underline="none"
-          style={{ textDecoration: "none" }}
-        >
-          <Link
-            variant="subtitle2"
-            underline="none"
-            style={{ textDecoration: "none" }}
-          >
+        <NextLink href={PATH_AUTH.register} passHref>
+          <Link variant="subtitle2" underline="none">
             Get started
           </Link>
         </NextLink>
