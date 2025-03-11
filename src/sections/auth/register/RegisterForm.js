@@ -1,6 +1,7 @@
 import * as Yup from "yup";
 import { useState } from "react";
 import axios from "axios";
+axios.defaults.withCredentials = true; // Add this line
 import { useRouter } from "next/router"; // Import useRouter
 // form
 import { useForm } from "react-hook-form";
