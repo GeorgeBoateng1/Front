@@ -78,32 +78,45 @@ export default function RegisterForm() {
   } = methods;
 
   const onSubmit = async (data) => {
-    try {
-      // Prepare the payload
-      const payload = {
-        name: `${data.first_name} ${data.last_name}`, // Combine first and last name
-        email: data.email,
-        password: data.password,
-      };
+  try {
+    // Prepare the payload
+    const payload = {
+      name: `${data.first_name} ${data.last_name}`,
+      email: data.email,
+      password: data.password,
+    };
 
-      // Send request to API
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/auth/register`,
-        payload
-      );
+    // Show loading indication
+    enqueueSnackbar("Registering your account...", { variant: "info" });
 
-      // Show success message
-      enqueueSnackbar(response.data.message, { variant: "success" });
+    // Send request to API
+    const response = await axios.post(
+      `${BACKEND_URL}/api/v1/auth/register`,
+      payload,
+      { withCredentials: true } // Add this to ensure cookies are sent/received
+    );
 
-      // Redirect to login page
+    console.log("Registration successful:", response.data);
+    
+    // Show success message
+    enqueueSnackbar("Registration successful! Redirecting to login...", { 
+      variant: "success",
+      autoHideDuration: 2000 
+    });
+
+    // Add delay before redirecting
+    setTimeout(() => {
       router.push("/auth/login");
-    } catch (error) {
-      console.log("Registration Error:", error.response?.data || error);
-      enqueueSnackbar(error?.message || "Registration failed!", {
-        variant: "error",
-      });
-    }
-  };
+    }, 2000);
+    
+  } catch (error) {
+    console.error("Registration Error:", error);
+    
+    // Show specific error message from backend if available
+    const errorMessage = error.response?.data?.message || error.message || "Registration failed!";
+    enqueueSnackbar(errorMessage, { variant: "error" });
+  }
+};
 
   return (
     <FormProvider methods={methods} onSubmit={handleSubmit(onSubmit)}>
