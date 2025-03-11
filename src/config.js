@@ -56,7 +56,7 @@ export const ICON = {
 };
 
 // export const BACKEND_URL = "https://3.90.174.177/api/node";
-export const BACKEND_URL = "http://localhost:5000";
+export const BACKEND_URL = "https://test.annologic.com";
 // SETTINGS
 // ----------------------------------------------------------------------
 
